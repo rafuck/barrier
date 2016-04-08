@@ -26,12 +26,12 @@ private:
 		messages[threadId].signalRight.store(1, std::memory_order_relaxed);
 
 		while(messages[threadId].signalRight.load(std::memory_order_relaxed) != 2);
-		messages[threadId].signalRight.store(0, std::memory_order_relaxed);
+		messages[threadId].signalRight.store(0, std::memory_order_acq_rel);
 	}
 
 	inline void receiveLeft(size_t threadId){
 		while(messages[threadId-1].signalRight.load(std::memory_order_relaxed) != 1);
-		messages[threadId-1].signalRight.store(2, std::memory_order_relaxed);
+		messages[threadId-1].signalRight.store(2, std::memory_order_acq_rel);
 	}
 
 	inline void sendLeft(size_t threadId){
@@ -44,7 +44,7 @@ private:
 		do{
 			ex = 2;
 		}
-		while(!messages[threadId].signalLeft.compare_exchange_weak(ex, 0, std::memory_order_relaxed));
+		while(!messages[threadId].signalLeft.compare_exchange_weak(ex, 0, std::memory_order_acq_rel));
 	}
 
 	inline void receiveRight(size_t threadId){
@@ -52,7 +52,7 @@ private:
 		do{
 			ex = 1;
 		}
-		while(!messages[threadId+1].signalLeft.compare_exchange_weak(ex, 2, std::memory_order_relaxed));
+		while(!messages[threadId+1].signalLeft.compare_exchange_weak(ex, 2, memory_order_acq_rel));
 	}
 public:
 	Barrier(size_t n = 0){
@@ -108,7 +108,7 @@ public:
 		leaved.fetch_add(1, std::memory_order_relaxed);
 		while(leaved.load(std::memory_order_relaxed) < nThreads);
 
-		int old = entered.fetch_add(-1, std::memory_order_relaxed);
+		int old = entered.fetch_add(-1, std::memory_order_acq_rel);
 		if (old == 1){
 			leaved.store(0, std::memory_order_relaxed);
 		}
