@@ -52,7 +52,7 @@ private:
 		do{
 			ex = 1;
 		}
-		while(!messages[threadId+1].signalLeft.compare_exchange_weak(ex, 2, memory_order_acq_rel));
+		while(!messages[threadId+1].signalLeft.compare_exchange_weak(ex, 2, std::memory_order_acq_rel));
 	}
 public:
 	Barrier(size_t n = 0){
@@ -102,15 +102,13 @@ public:
 	inline void barrier(size_t threadId){
 		while(leaved.load(std::memory_order_relaxed));
 		
-		entered.fetch_add(1, std::memory_order_relaxed);
+		entered.fetch_add(1, std::memory_order_acquire);
 		while(entered.load(std::memory_order_relaxed) < nThreads);
 
-		leaved.fetch_add(1, std::memory_order_relaxed);
-		while(leaved.load(std::memory_order_relaxed) < nThreads);
-
-		int old = entered.fetch_add(-1, std::memory_order_acq_rel);
-		if (old == 1){
-			leaved.store(0, std::memory_order_relaxed);
+		unsigned int tmp = leaved.fetch_add(1, std::memory_order_release);
+		if (tmp == nThreads-1){
+			entered.store(0);
+			leaved.store(0);
 		}
 	}
 };
@@ -143,14 +141,10 @@ public:
 			//nop
 		}
 
-		leaved.fetch_xor(mask, std::memory_order_relaxed);
-		while(leaved.load(std::memory_order_relaxed) != ones){
-			//nop
-		}
-
-		unsigned int old = entered.fetch_xor(mask, std::memory_order_release);
+		unsigned int old = leaved.fetch_xor(mask, std::memory_order_release);
 		if (old == (ones ^ mask)){
-			leaved.store(0, std::memory_order_relaxed);
+			entered.store(ones);
+			leaved.store(0);
 		}
 	}
 };
